@@ -196,7 +196,7 @@ func SignCommand() *urfavecli.Command {
 					// Fulcio URLs
 					[]root.Service{
 						{
-							URL:                 "https://fulcio.sigstage.dev",
+							URL:                 "https://fulcio.sigstore.dev",
 							MajorAPIVersion:     1,
 							ValidityPeriodStart: time.Now().Add(-time.Hour),
 							ValidityPeriodEnd:   time.Now().Add(time.Hour),
@@ -205,7 +205,7 @@ func SignCommand() *urfavecli.Command {
 					// OIDC Provider URLs
 					[]root.Service{
 						{
-							URL:                 "https://oauth2.sigstage.dev/auth",
+							URL:                 "https://oauth2.sigstore.dev/auth",
 							MajorAPIVersion:     1,
 							ValidityPeriodStart: time.Now().Add(-time.Hour),
 							ValidityPeriodEnd:   time.Now().Add(time.Hour),
@@ -214,7 +214,7 @@ func SignCommand() *urfavecli.Command {
 					// Rekor URLs
 					[]root.Service{
 						{
-							URL:                 "https://rekor.sigstage.dev",
+							URL:                 "https://rekor.sigstore.dev",
 							MajorAPIVersion:     1,
 							ValidityPeriodStart: time.Now().Add(-time.Hour),
 							ValidityPeriodEnd:   time.Now().Add(time.Hour),
