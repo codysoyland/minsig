@@ -33,6 +33,22 @@ func VerifyCommand() *urfavecli.Command {
 				Name:  "bundle",
 				Usage: "Path to the bundle file. If not provided, the bundle will be expected as FILENAME[.sigstore.json]",
 			},
+			&urfavecli.StringFlag{
+				Name:  "certificate-identity",
+				Usage: "The expected identity in the certificate subject (e.g. email address). Required if --certificate-identity-regex is not provided.",
+			},
+			&urfavecli.StringFlag{
+				Name:  "certificate-identity-regex",
+				Usage: "A regular expression to match the identity in the certificate subject. Required if --certificate-identity is not provided.",
+			},
+			&urfavecli.StringFlag{
+				Name:  "certificate-oidc-issuer",
+				Usage: "The expected OIDC issuer for the certificate (e.g. https://accounts.google.com). Required if --certificate-oidc-issuer-regex is not provided.",
+			},
+			&urfavecli.StringFlag{
+				Name:  "certificate-oidc-issuer-regex",
+				Usage: "A regular expression to match the OIDC issuer for the certificate. Required if --certificate-oidc-issuer is not provided.",
+			},
 		},
 		Action: func(ctx context.Context, c *urfavecli.Command) error {
 			// Require either artifact path or attestation flag to be provided
@@ -42,11 +58,41 @@ func VerifyCommand() *urfavecli.Command {
 				return errors.New("either --artifact path or --attestation=true must be provided")
 			}
 
+			// Require either certificate-identity or certificate-identity-regex
+			certIdentity := c.String("certificate-identity")
+			certIdentityRegex := c.String("certificate-identity-regex")
+			if certIdentity == "" && certIdentityRegex == "" {
+				return errors.New("either --certificate-identity or --certificate-identity-regex must be provided")
+			}
+
+			// Require either certificate-oidc-issuer or certificate-oidc-issuer-regex
+			certIssuer := c.String("certificate-oidc-issuer")
+			certIssuerRegex := c.String("certificate-oidc-issuer-regex")
+			if certIssuer == "" && certIssuerRegex == "" {
+				return errors.New("either --certificate-oidc-issuer or --certificate-oidc-issuer-regex must be provided")
+			}
+
 			fmt.Println("=== Verify Command Arguments ===")
 			fmt.Printf("Artifact path: %s\n", artifact)
 			fmt.Printf("Is attestation: %t\n", isAttestation)
 			fmt.Printf("Is OCI image: %t\n", c.Bool("oci"))
 			fmt.Printf("Bundle path: %s\n", c.String("bundle"))
+
+			// Print certificate identity info
+			if certIdentity != "" {
+				fmt.Printf("Certificate Identity: %s\n", certIdentity)
+			}
+			if certIdentityRegex != "" {
+				fmt.Printf("Certificate Identity Regex: %s\n", certIdentityRegex)
+			}
+
+			// Print certificate issuer info
+			if certIssuer != "" {
+				fmt.Printf("Certificate OIDC Issuer: %s\n", certIssuer)
+			}
+			if certIssuerRegex != "" {
+				fmt.Printf("Certificate OIDC Issuer Regex: %s\n", certIssuerRegex)
+			}
 
 			// Global flags
 			fmt.Printf("TUF URL: %s\n", c.String("tuf-url"))

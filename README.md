@@ -49,6 +49,8 @@ sigstore-cli sign \
 ```sh
 sigstore-cli verify \
     --artifact <path-to-artifact> \
+    --certificate-identity <expected-identity> \
+    --certificate-oidc-issuer <expected-issuer> \
     [--bundle <path-to-bundle>] \
     [--trusted-root <path-to-trusted-root>]
 ```
@@ -59,6 +61,8 @@ sigstore-cli verify \
 ```sh
 sigstore-cli verify \
     --attestation=true \
+    --certificate-identity <expected-identity> \
+    --certificate-oidc-issuer <expected-issuer> \
     [--bundle <path-to-bundle>] \
     [--trusted-root <path-to-trusted-root>]
 ```
@@ -91,7 +95,11 @@ sigstore-cli verify \
 ### `sigstore-cli verify` flags:
 | Flag                  | Description                                                                 |
 |-----------------------|-----------------------------------------------------------------------------|
-| `--artifact`           | Path to the artifact to verify. Optional if attestation is provided.       |
-| `--attestation`        | Bool to indicate if the artifact is an attestation. Default is false.      |
-| `--oci`                | Bool to indicate if the artifact is an OCI image. Default is false.
+| `--artifact`           | Path to the artifact to verify. Required if attestation is not set to true. |
+| `--attestation`        | Bool to indicate if the artifact is an attestation. Required if artifact path is not provided. |
+| `--oci`                | Bool to indicate if the artifact is an OCI image. Default is false.         |
 | `--bundle`             | Path to the bundle file. If not provided, the bundle will be expected as `FILENAME[.sigstore.json]` in the same directory as the artifact, or as an OCI referring artifact |
+| `--certificate-identity` | The expected identity in the certificate subject (e.g. email address). Required if --certificate-identity-regex is not provided. |
+| `--certificate-identity-regex` | A regular expression to match the identity in the certificate subject. Required if --certificate-identity is not provided. |
+| `--certificate-oidc-issuer` | The expected OIDC issuer for the certificate (e.g. https://accounts.google.com). Required if --certificate-oidc-issuer-regex is not provided. |
+| `--certificate-oidc-issuer-regex` | A regular expression to match the OIDC issuer for the certificate. Required if --certificate-oidc-issuer is not provided. |
