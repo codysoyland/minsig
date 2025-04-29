@@ -2,10 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"os"
+	"path/filepath"
 
+	"github.com/sigstore/sigstore-go/pkg/bundle"
+	"github.com/sigstore/sigstore-go/pkg/root"
+	"github.com/sigstore/sigstore-go/pkg/tuf"
+	"github.com/sigstore/sigstore-go/pkg/util"
+	"github.com/sigstore/sigstore-go/pkg/verify"
+	"github.com/theupdateframework/go-tuf/v2/metadata/fetcher"
 	urfavecli "github.com/urfave/cli/v3"
 )
 
@@ -49,12 +57,27 @@ func VerifyCommand() *urfavecli.Command {
 				Name:  "certificate-oidc-issuer-regex",
 				Usage: "A regular expression to match the OIDC issuer for the certificate. Required if --certificate-oidc-issuer is not provided.",
 			},
+			&urfavecli.BoolFlag{
+				Name:  "require-sct",
+				Usage: "Require a Signed Certificate Timestamp",
+				Value: true,
+			},
+			&urfavecli.BoolFlag{
+				Name:  "require-timestamp",
+				Usage: "Require a timestamp",
+				Value: true,
+			},
+			&urfavecli.BoolFlag{
+				Name:  "require-transparency-log",
+				Usage: "Require a transparency log entry (Rekor)",
+				Value: true,
+			},
 		},
 		Action: func(ctx context.Context, c *urfavecli.Command) error {
 			// Require either artifact path or attestation flag to be provided
-			artifact := c.String("artifact")
+			artifactPath := c.String("artifact")
 			isAttestation := c.Bool("attestation")
-			if artifact == "" && !isAttestation {
+			if artifactPath == "" && !isAttestation {
 				return errors.New("either --artifact path or --attestation=true must be provided")
 			}
 
@@ -73,10 +96,16 @@ func VerifyCommand() *urfavecli.Command {
 			}
 
 			fmt.Println("=== Verify Command Arguments ===")
-			fmt.Printf("Artifact path: %s\n", artifact)
+			fmt.Printf("Artifact path: %s\n", artifactPath)
 			fmt.Printf("Is attestation: %t\n", isAttestation)
 			fmt.Printf("Is OCI image: %t\n", c.Bool("oci"))
-			fmt.Printf("Bundle path: %s\n", c.String("bundle"))
+
+			// Determine bundle path
+			bundlePath := c.String("bundle")
+			if bundlePath == "" && artifactPath != "" {
+				bundlePath = artifactPath + ".sigstore.json"
+			}
+			fmt.Printf("Bundle path: %s\n", bundlePath)
 
 			// Print certificate identity info
 			if certIdentity != "" {
@@ -95,16 +124,151 @@ func VerifyCommand() *urfavecli.Command {
 			}
 
 			// Global flags
-			fmt.Printf("TUF URL: %s\n", c.String("tuf-url"))
-			fmt.Printf("TUF Root: %s\n", c.String("tuf-root"))
-			fmt.Printf("TUF Cache Path: %s\n", c.String("tuf-cache-path"))
+			tufURL := c.String("tuf-url")
+			tufRoot := c.String("tuf-root")
+			tufCachePath := c.String("tuf-cache-path")
+			fmt.Printf("TUF URL: %s\n", tufURL)
+			fmt.Printf("TUF Root: %s\n", tufRoot)
+			fmt.Printf("TUF Cache Path: %s\n", tufCachePath)
 			fmt.Printf("TUF Cache TTL: %s\n", c.Duration("tuf-cache-ttl"))
 			fmt.Printf("Signing Config: %s\n", c.String("signing-config"))
 			fmt.Printf("Trusted Root: %s\n", c.String("trusted-root"))
 
 			fmt.Println("============================")
 
-			log.Println("Verifying artifact...")
+			// 1. Load bundle from file
+			b, err := bundle.LoadJSONFromPath(bundlePath)
+			if err != nil {
+				return fmt.Errorf("failed to load bundle from %s: %w", bundlePath, err)
+			}
+
+			// 2. Set up verifier configuration
+			verifierConfig := []verify.VerifierOption{}
+
+			// Add SCT requirement if specified
+			if c.Bool("require-sct") {
+				verifierConfig = append(verifierConfig, verify.WithSignedCertificateTimestamps(1))
+			}
+
+			// Add timestamp requirement if specified
+			if c.Bool("require-timestamp") {
+				verifierConfig = append(verifierConfig, verify.WithObserverTimestamps(1))
+			}
+
+			// Add transparency log requirement if specified
+			if c.Bool("require-transparency-log") {
+				verifierConfig = append(verifierConfig, verify.WithTransparencyLog(1))
+			}
+
+			// 3. Configure identity verification
+			certID, err := verify.NewShortCertificateIdentity(certIssuer, certIssuerRegex, certIdentity, certIdentityRegex)
+			if err != nil {
+				return fmt.Errorf("failed to create certificate identity: %w", err)
+			}
+			identityPolicies := []verify.PolicyOption{verify.WithCertificateIdentity(certID)}
+
+			// 4. Set up trusted material
+			var trustedMaterial = make(root.TrustedMaterialCollection, 0)
+
+			// Expand ~ to home directory in cache path
+			if tufCachePath[:1] == "~" {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return fmt.Errorf("failed to get home directory: %w", err)
+				}
+				tufCachePath = filepath.Join(home, tufCachePath[1:])
+			}
+
+			// Setup TUF options
+			tufOptions := &tuf.Options{
+				RepositoryBaseURL: tufURL,
+				CachePath:         tufCachePath,
+			}
+
+			// Setup TUF fetcher
+			fetcher := fetcher.DefaultFetcher{}
+			fetcher.SetHTTPUserAgent(util.ConstructUserAgent())
+			tufOptions.Fetcher = &fetcher
+
+			// If custom root file provided
+			if tufRoot != "" {
+				rootBytes, err := os.ReadFile(tufRoot)
+				if err != nil {
+					return fmt.Errorf("failed to read TUF root file: %w", err)
+				}
+				tufOptions.Root = rootBytes
+			} else {
+				tufOptions.Root = tuf.DefaultRoot()
+			}
+
+			// Get TUF client
+			tufClient, err := tuf.New(tufOptions)
+			if err != nil {
+				return fmt.Errorf("failed to create TUF client: %w", err)
+			}
+
+			// Get trusted root
+			var trustedRoot *root.TrustedRoot
+			trustedRootPath := c.String("trusted-root")
+			if trustedRootPath != "" {
+				// Use provided trusted root file
+				trustedRootBytes, err := os.ReadFile(trustedRootPath)
+				if err != nil {
+					return fmt.Errorf("failed to read trusted root file: %w", err)
+				}
+				trustedRoot, err = root.NewTrustedRootFromJSON(trustedRootBytes)
+				if err != nil {
+					return fmt.Errorf("failed to parse trusted root file: %w", err)
+				}
+			} else {
+				// Get from TUF
+				trustedRoot, err = root.GetTrustedRoot(tufClient)
+				if err != nil {
+					return fmt.Errorf("failed to get trusted root from TUF: %w", err)
+				}
+			}
+
+			trustedMaterial = append(trustedMaterial, trustedRoot)
+
+			if len(trustedMaterial) == 0 {
+				return errors.New("no trusted material provided")
+			}
+
+			// 5. Create SignedEntityVerifier
+			sev, err := verify.NewSignedEntityVerifier(trustedMaterial, verifierConfig...)
+			if err != nil {
+				return fmt.Errorf("failed to create signed entity verifier: %w", err)
+			}
+
+			// 6. Verify the signature against the artifact
+			var artifactPolicy verify.ArtifactPolicyOption
+
+			if artifactPath != "" {
+				file, err := os.Open(artifactPath)
+				if err != nil {
+					return fmt.Errorf("failed to open artifact file: %w", err)
+				}
+				defer file.Close()
+				artifactPolicy = verify.WithArtifact(file)
+			} else {
+				artifactPolicy = verify.WithoutArtifactUnsafe()
+				fmt.Println("Warning: No artifact provided for verification")
+			}
+
+			// 7. Verify and return result
+			verificationResult, err := sev.Verify(b, verify.NewPolicy(artifactPolicy, identityPolicies...))
+			if err != nil {
+				return fmt.Errorf("verification failed: %w", err)
+			}
+
+			// Marshal and print verification result
+			fmt.Println("Verification successful!")
+			resultJSON, err := json.MarshalIndent(verificationResult, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal verification result: %w", err)
+			}
+			fmt.Println(string(resultJSON))
+
 			return nil
 		},
 	}
