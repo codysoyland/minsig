@@ -2,6 +2,54 @@
 
 A minimalist command-line tool for signing and verifying artifacts using Sigstore.
 
+## Status
+
+Experimental. This tool is not yet ready for production use.
+
+## Comparison to Cosign
+
+This is a lightweight alternative to [Cosign](https://github.com/sigstore/cosign). The purpose of this tool is to experiment with a simpler interface design compared to Cosign based on [sigstore-go](https://github.com/sigstore/sigstore-go).
+
+Notable differences:
+- Embraces the Unix philosophy: Fewer features, more composability.
+- Fewer flags are offered as many are bundled into the Trusted Root, Signing Config, and Sigstore Bundle.
+- Several subcommands are omitted in favor of alternative tools.
+- Legacy Sigstore OCI format is not supported.
+
+### Comparison to Cosign subcommands
+
+| Cosign subcommand | sigstore-cli equivalent | Description |
+|-------------------|-------------------------|-------------|
+| `cosign sign [IMAGE]`      | `sigstore-cli sign --oci --artifact [IMAGE]`    | Sign a container image |
+| `cosign verify [IMAGE]`    | `sigstore-cli verify --oci --artifact [IMAGE]`  | Verify a container image |
+| `cosign sign-blob [FILE]` | `sigstore-cli sign [FILE]`    | Sign a file |
+| `cosign verify-blob [FILE]` | `sigstore-cli verify [FILE]`  | Verify a file |
+| `cosign attest --predicate [PREDICATE] [IMAGE]` | `sigstore-cli sign --predicate [PREDICATE] --oci --artifact [IMAGE]` |  Attest a container image |
+| `cosign verify-attestation [IMAGE]` | `sigstore-cli verify --predicate-type [PREDICATE] --oci --artifact [IMAGE]` | Verify an attestation for a container image |
+| `cosign attest-blob --predicate [PREDICATE] [FILE]` | `sigstore-cli sign --predicate [PREDICATE] --artifact [FILE]` | Attest a file |
+| `cosign verify-blob-attestation --predicate [PREDICATE] [FILE]` | `sigstore-cli verify --predicate-type [PREDICATE] --artifact [FILE]` | Verify an attestation for a file |
+| `cosign attach` | Unsupported. Use `oras attach` instead. | Attach a signature to an OCI image |
+| `cosign bundle` | Unsupported. | Create a Sigstore Bundle |
+| `cosign clean` | Unsupported. Use `oras blob delete`/`oras manifest delete` instead. | Delete a signature from an OCI image |
+| `cosign copy` | Unsupported. Use `oras copy -r` instead. | Copy a signature from one OCI image to another |
+| `cosign dockerfile` | Unsupported. | Verify images in a Dockerfile |
+| `cosign download` | Unsupported. Use `oras discover`/`oras manifest get`/`oras blob get` instead. | Download a signature from an OCI image |
+| `cosign env` | Unsupported. All configuration is provided with flags. | Print Cosign environment variables |
+| `cosign generate` | Unsupported. | Generates (unsigned) signature payloads from the supplied container image. |
+| `cosign generate-key-pair` | Unsupported. Use `openssl` instead. | Generate a key pair for signing |
+| `cosign import-key-pair` | Unsupported. | Imports a PEM-encoded RSA or EC private key for signing. |
+| `cosign initialize` | Unsupported. | Initializes TUF cache. |
+| `cosign load` | Unsupported. | Load a signed image on disk to a remote registry. |
+| `cosign login` | Unsupported. Use `docker login` instead. | Login to a registry. |
+| `cosign manifest` | Unsupported. | Verify all signatures in a Kubernetes manifest. |
+| `cosign public-key` | Unsupported. | Gets a public key from the key-pair. |
+| `cosign save` | Unsupported. Use `oras` instead. | Save image and signature to a file. |
+| `cosign tree` | Unsupported. Use `oras discover` instead. | Display supply chain security related artifacts for an image. |
+| `cosign triangulate` | Unsupported as OCI referrers does not need it. | Outputs the located cosign image reference. |
+| `cosign trusted-root` | Unsupported. | Create a trusted root. |
+| `cosign upload` | Unsupported. | Upload to container registry. |
+
+
 ## Installation
 
 ```sh
