@@ -1,4 +1,6 @@
-# minsig
+![minsig](./minsig-logo-small.png)
+
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 A minimalist command-line tool for signing and verifying artifacts using Sigstore.
 
