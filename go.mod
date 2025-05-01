@@ -1,4 +1,4 @@
-module github.com/codysoyland/sigstore-cli
+module github.com/codysoyland/minsig
 
 go 1.24.2
 

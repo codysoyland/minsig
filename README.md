@@ -1,4 +1,4 @@
-# sigstore-cli
+# minsig
 
 A minimalist command-line tool for signing and verifying artifacts using Sigstore.
 
@@ -18,16 +18,16 @@ Notable differences:
 
 ### Comparison to Cosign subcommands
 
-| Cosign subcommand | sigstore-cli equivalent | Description |
+| Cosign subcommand | minsig equivalent | Description |
 |-------------------|-------------------------|-------------|
-| `cosign sign [IMAGE]`      | `sigstore-cli sign --oci --artifact [IMAGE]`    | Sign a container image |
-| `cosign verify [IMAGE]`    | `sigstore-cli verify --oci --artifact [IMAGE]`  | Verify a container image |
-| `cosign sign-blob [FILE]` | `sigstore-cli sign [FILE]`    | Sign a file |
-| `cosign verify-blob [FILE]` | `sigstore-cli verify [FILE]`  | Verify a file |
-| `cosign attest --predicate [PREDICATE] [IMAGE]` | `sigstore-cli sign --predicate [PREDICATE] --oci --artifact [IMAGE]` |  Attest a container image |
-| `cosign verify-attestation [IMAGE]` | `sigstore-cli verify --predicate-type [PREDICATE] --oci --artifact [IMAGE]` | Verify an attestation for a container image |
-| `cosign attest-blob --predicate [PREDICATE] [FILE]` | `sigstore-cli sign --predicate [PREDICATE] --artifact [FILE]` | Attest a file |
-| `cosign verify-blob-attestation --predicate [PREDICATE] [FILE]` | `sigstore-cli verify --predicate-type [PREDICATE] --artifact [FILE]` | Verify an attestation for a file |
+| `cosign sign [IMAGE]`      | `minsig sign --oci --artifact [IMAGE]`    | Sign a container image |
+| `cosign verify [IMAGE]`    | `minsig verify --oci --artifact [IMAGE]`  | Verify a container image |
+| `cosign sign-blob [FILE]` | `minsig sign [FILE]`    | Sign a file |
+| `cosign verify-blob [FILE]` | `minsig verify [FILE]`  | Verify a file |
+| `cosign attest --predicate [PREDICATE] [IMAGE]` | `minsig sign --predicate [PREDICATE] --oci --artifact [IMAGE]` |  Attest a container image |
+| `cosign verify-attestation [IMAGE]` | `minsig verify --predicate-type [PREDICATE] --oci --artifact [IMAGE]` | Verify an attestation for a container image |
+| `cosign attest-blob --predicate [PREDICATE] [FILE]` | `minsig sign --predicate [PREDICATE] --artifact [FILE]` | Attest a file |
+| `cosign verify-blob-attestation --predicate [PREDICATE] [FILE]` | `minsig verify --predicate-type [PREDICATE] --artifact [FILE]` | Verify an attestation for a file |
 | `cosign attach` | Unsupported. Use `oras attach` instead. | Attach a signature to an OCI image |
 | `cosign bundle` | Unsupported. | Create a Sigstore Bundle |
 | `cosign clean` | Unsupported. Use `oras blob delete`/`oras manifest delete` instead. | Delete a signature from an OCI image |
@@ -53,7 +53,7 @@ Notable differences:
 ## Installation
 
 ```sh
-go install github.com/codysoyland/sigstore-cli/cmd/sigstore-cli@latest
+go install github.com/codysoyland/minsig/cmd/minsig@latest
 ```
 
 ## Usage
@@ -61,7 +61,7 @@ go install github.com/codysoyland/sigstore-cli/cmd/sigstore-cli@latest
 ### Sign an Artifact
 
 ```sh
-sigstore-cli sign \
+minsig sign \
     --artifact <path-to-artifact> \
     [--signing-config <path-to-signing-config>] \
 ```
@@ -69,7 +69,7 @@ sigstore-cli sign \
 ### Sign an attestation
 
 ```sh
-sigstore-cli sign \
+minsig sign \
     --attestation <path-to-attestation> \
     [--signing-config <path-to-signing-config>] \
 ```
@@ -77,7 +77,7 @@ sigstore-cli sign \
 ### Sign a container image
 
 ```sh
-sigstore-cli sign \
+minsig sign \
     --artifact <oci-image-ref> \
     [--signing-config <path-to-signing-config>] \
     [--attach]
@@ -86,7 +86,7 @@ sigstore-cli sign \
 ### Sign using private key
 
 ```sh
-sigstore-cli sign \
+minsig sign \
     --artifact <path-to-artifact> \
     --key <path-to-private-key> \
     [--signing-config <path-to-signing-config>] \
@@ -95,7 +95,7 @@ sigstore-cli sign \
 ### Verify a Signed Artifact
 
 ```sh
-sigstore-cli verify \
+minsig verify \
     --artifact <path-to-artifact> \
     --certificate-identity <expected-identity> \
     --certificate-oidc-issuer <expected-issuer> \
@@ -107,7 +107,7 @@ sigstore-cli verify \
 ### Verify a Signed Attestation
 
 ```sh
-sigstore-cli verify \
+minsig verify \
     --attestation=true \
     --certificate-identity <expected-identity> \
     --certificate-oidc-issuer <expected-issuer> \
@@ -127,7 +127,7 @@ sigstore-cli verify \
 | `--signing-config`    | Path to the signing configuration file. Uses TUF if not specified           |
 | `--trusted-root`      | Path to the trusted root file. Uses TUF if not specified                    |
 
-### `sigstore-cli sign` flags:
+### `minsig sign` flags:
 
 | Flag                  | Description                                                                 |
 |-----------------------|-----------------------------------------------------------------------------|
@@ -140,7 +140,7 @@ sigstore-cli verify \
 | `--output`             | Path to write the signature bundle to (defaults to [filename].sigstore.json). |
 | `--id-token`           | OIDC token to send to Fulcio.                                             |
 
-### `sigstore-cli verify` flags:
+### `minsig verify` flags:
 | Flag                  | Description                                                                 |
 |-----------------------|-----------------------------------------------------------------------------|
 | `--artifact`           | Path to the artifact to verify. Required if attestation is not set to true. |

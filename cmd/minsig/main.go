@@ -11,7 +11,7 @@ import (
 
 func main() {
 	app := &urfavecli.Command{
-		Name:  "sigstore-cli",
+		Name:  "minsig",
 		Usage: "A CLI tool for signing and verifying artifacts",
 		Flags: []urfavecli.Flag{
 			&urfavecli.StringFlag{
