@@ -14,6 +14,7 @@ import (
 	"github.com/sigstore/sigstore-go/pkg/sign"
 	"github.com/sigstore/sigstore-go/pkg/tuf"
 	"github.com/sigstore/sigstore-go/pkg/util"
+	"github.com/sigstore/sigstore/pkg/oauthflow"
 	"github.com/theupdateframework/go-tuf/v2/metadata/fetcher"
 	urfavecli "github.com/urfave/cli/v3"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -240,20 +241,28 @@ func SignCommand() *urfavecli.Command {
 				}
 			}
 
-			if c.String("id-token") != "" {
-				fulcioURL, err := root.SelectService(signingConfig.FulcioCertificateAuthorityURLs(), []uint32{1}, time.Now())
+			var idToken = c.String("id-token")
+			if idToken == "" {
+				var issuer = "https://oauth2.sigstore.dev/auth"
+				var clientID = "sigstore"
+				token, err := oauthflow.OIDConnect(issuer, clientID, "", "", oauthflow.DefaultIDTokenGetter)
 				if err != nil {
-					log.Fatal(err)
+					return fmt.Errorf("failed to get OIDC token: %w", err)
 				}
-				fulcioOpts := &sign.FulcioOptions{
-					BaseURL: fulcioURL,
-					Timeout: time.Duration(30 * time.Second),
-					Retries: 1,
-				}
-				opts.CertificateProvider = sign.NewFulcio(fulcioOpts)
-				opts.CertificateProviderOptions = &sign.CertificateProviderOptions{
-					IDToken: c.String("id-token"),
-				}
+				idToken = token.RawString
+			}
+			fulcioURL, err := root.SelectService(signingConfig.FulcioCertificateAuthorityURLs(), []uint32{1}, time.Now())
+			if err != nil {
+				log.Fatal(err)
+			}
+			fulcioOpts := &sign.FulcioOptions{
+				BaseURL: fulcioURL,
+				Timeout: time.Duration(30 * time.Second),
+				Retries: 1,
+			}
+			opts.CertificateProvider = sign.NewFulcio(fulcioOpts)
+			opts.CertificateProviderOptions = &sign.CertificateProviderOptions{
+				IDToken: idToken,
 			}
 
 			// Setup Timestamp Authority
