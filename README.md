@@ -2,6 +2,19 @@
 
 A minimalist command-line tool for signing and verifying artifacts using Sigstore.
 
+## Philosophy
+
+The goal of this project is:
+
+- To create an alternative to [Cosign](https://github.com/sigstore/cosign) that is redesigned around the [Sigstore Client Specification](https://github.com/sigstore/architecture-docs/blob/main/client-spec.md).
+- To experiment with UX design without the constraints of backwards compatibility.
+- To inform the direction of Cosign v3+.
+
+Non-goals include:
+
+- To implement all of the features of Cosign.
+- Code quality is not a primary focus of this project, but that may change in the future. This is vibe-driven development.
+
 ## Status
 
 Experimental. This tool is not yet ready for production use.
