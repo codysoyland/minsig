@@ -2,6 +2,10 @@
 
 A minimalist command-line tool for signing and verifying artifacts using Sigstore.
 
+## Status
+
+Experimental. This tool is not yet ready for production use.
+
 ## Philosophy
 
 The goal of this project is:
@@ -14,10 +18,6 @@ Non-goals include:
 
 - To implement all of the features of Cosign.
 - Code quality is not a primary focus of this project, but that may change in the future. This is vibe-driven development.
-
-## Status
-
-Experimental. This tool is not yet ready for production use.
 
 ## Comparison to Cosign
 
