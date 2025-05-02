@@ -170,43 +170,6 @@ func VerifyCommand() *urfavecli.Command {
 			// 4. Set up trusted material
 			var trustedMaterial = make(root.TrustedMaterialCollection, 0)
 
-			// Expand ~ to home directory in cache path
-			if tufCachePath[:1] == "~" {
-				home, err := os.UserHomeDir()
-				if err != nil {
-					return fmt.Errorf("failed to get home directory: %w", err)
-				}
-				tufCachePath = filepath.Join(home, tufCachePath[1:])
-			}
-
-			// Setup TUF options
-			tufOptions := &tuf.Options{
-				RepositoryBaseURL: tufURL,
-				CachePath:         tufCachePath,
-			}
-
-			// Setup TUF fetcher
-			fetcher := fetcher.DefaultFetcher{}
-			fetcher.SetHTTPUserAgent(util.ConstructUserAgent())
-			tufOptions.Fetcher = &fetcher
-
-			// If custom root file provided
-			if tufRoot != "" {
-				rootBytes, err := os.ReadFile(tufRoot)
-				if err != nil {
-					return fmt.Errorf("failed to read TUF root file: %w", err)
-				}
-				tufOptions.Root = rootBytes
-			} else {
-				tufOptions.Root = tuf.DefaultRoot()
-			}
-
-			// Get TUF client
-			tufClient, err := tuf.New(tufOptions)
-			if err != nil {
-				return fmt.Errorf("failed to create TUF client: %w", err)
-			}
-
 			// Get trusted root
 			var trustedRoot *root.TrustedRoot
 			trustedRootPath := c.String("trusted-root")
@@ -222,6 +185,43 @@ func VerifyCommand() *urfavecli.Command {
 				}
 			} else {
 				// Get from TUF
+				// Expand ~ to home directory in cache path
+				if tufCachePath[:1] == "~" {
+					home, err := os.UserHomeDir()
+					if err != nil {
+						return fmt.Errorf("failed to get home directory: %w", err)
+					}
+					tufCachePath = filepath.Join(home, tufCachePath[1:])
+				}
+
+				// Setup TUF options
+				tufOptions := &tuf.Options{
+					RepositoryBaseURL: tufURL,
+					CachePath:         tufCachePath,
+				}
+
+				// Setup TUF fetcher
+				fetcher := fetcher.DefaultFetcher{}
+				fetcher.SetHTTPUserAgent(util.ConstructUserAgent())
+				tufOptions.Fetcher = &fetcher
+
+				// If custom root file provided
+				if tufRoot != "" {
+					rootBytes, err := os.ReadFile(tufRoot)
+					if err != nil {
+						return fmt.Errorf("failed to read TUF root file: %w", err)
+					}
+					tufOptions.Root = rootBytes
+				} else {
+					tufOptions.Root = tuf.DefaultRoot()
+				}
+
+				// Get TUF client
+				tufClient, err := tuf.New(tufOptions)
+				if err != nil {
+					return fmt.Errorf("failed to create TUF client: %w", err)
+				}
+
 				trustedRoot, err = root.GetTrustedRoot(tufClient)
 				if err != nil {
 					return fmt.Errorf("failed to get trusted root from TUF: %w", err)
