@@ -6,16 +6,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
 	v1 "github.com/sigstore/protobuf-specs/gen/pb-go/trustroot/v1"
 	"github.com/sigstore/sigstore-go/pkg/root"
 	"github.com/sigstore/sigstore-go/pkg/sign"
-	"github.com/sigstore/sigstore-go/pkg/tuf"
-	"github.com/sigstore/sigstore-go/pkg/util"
 	"github.com/sigstore/sigstore/pkg/oauthflow"
-	"github.com/theupdateframework/go-tuf/v2/metadata/fetcher"
 	urfavecli "github.com/urfave/cli/v3"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -128,58 +124,6 @@ func SignCommand() *urfavecli.Command {
 			// Configure the bundle options
 			opts := sign.BundleOptions{}
 
-			// Setup TUF and trusted root
-			tufURL := c.String("tuf-url")
-			tufRoot := c.String("tuf-root")
-			tufCachePath := c.String("tuf-cache-path")
-
-			// Expand ~ to home directory in cache path
-			if tufCachePath[:1] == "~" {
-				home, err := os.UserHomeDir()
-				if err != nil {
-					return fmt.Errorf("failed to get home directory: %w", err)
-				}
-				tufCachePath = filepath.Join(home, tufCachePath[1:])
-			}
-
-			// Create TUF client
-			fetcher := fetcher.DefaultFetcher{}
-			fetcher.SetHTTPUserAgent(util.ConstructUserAgent())
-
-			tufOptions := &tuf.Options{
-				RepositoryBaseURL: tufURL,
-				Fetcher:           &fetcher,
-				CachePath:         tufCachePath,
-			}
-
-			// If custom root file provided
-			if tufRoot != "" {
-				rootBytes, err := os.ReadFile(tufRoot)
-				if err != nil {
-					return fmt.Errorf("failed to read TUF root file: %w", err)
-				}
-				tufOptions.Root = rootBytes
-			} else {
-				tufOptions.Root = tuf.DefaultRoot()
-			}
-
-			// Get trusted root
-			// var trustedRoot = &root.TrustedRoot{}
-			// trustedRootPath := c.String("trusted-root")
-			// if trustedRootPath != "" {
-			// 	trustedRoot, err = root.NewTrustedRootFromPath(trustedRootPath)
-			// 	if err != nil {
-			// 		return fmt.Errorf("failed to read trusted root file: %w", err)
-			// 	}
-			// } else {
-			// 	// Get from TUF
-			// 	trustedRoot, err = root.FetchTrustedRootWithOptions(tufOptions)
-			// 	if err != nil {
-			// 		return fmt.Errorf("failed to get trusted root from TUF: %w", err)
-			// 	}
-			// }
-			// opts.TrustedRoot = trustedRoot
-
 			// Get signing config
 			var signingConfig *root.SigningConfig
 			signingConfigPath := c.String("signing-config")
@@ -189,9 +133,7 @@ func SignCommand() *urfavecli.Command {
 					return fmt.Errorf("failed to read signing config file: %w", err)
 				}
 			} else {
-				// TODO: Uncomment once an updated v0.2 SigningConfig is distributed
-				// via TUF
-				// signingConfigPGI, err := root.GetSigningConfig(tufClient)
+				// TODO: Add support for getting signing config from TUF
 				signingConfig, err = root.NewSigningConfig(
 					root.SigningConfigMediaType02,
 					// Fulcio URLs
