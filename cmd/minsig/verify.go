@@ -95,46 +95,11 @@ func VerifyCommand() *urfavecli.Command {
 				return errors.New("either --certificate-oidc-issuer or --certificate-oidc-issuer-regex must be provided")
 			}
 
-			fmt.Println("=== Verify Command Arguments ===")
-			fmt.Printf("Artifact path: %s\n", artifactPath)
-			fmt.Printf("Is attestation: %t\n", isAttestation)
-			fmt.Printf("Is OCI image: %t\n", c.Bool("oci"))
-
 			// Determine bundle path
 			bundlePath := c.String("bundle")
 			if bundlePath == "" && artifactPath != "" {
 				bundlePath = artifactPath + ".sigstore.json"
 			}
-			fmt.Printf("Bundle path: %s\n", bundlePath)
-
-			// Print certificate identity info
-			if certIdentity != "" {
-				fmt.Printf("Certificate Identity: %s\n", certIdentity)
-			}
-			if certIdentityRegex != "" {
-				fmt.Printf("Certificate Identity Regex: %s\n", certIdentityRegex)
-			}
-
-			// Print certificate issuer info
-			if certIssuer != "" {
-				fmt.Printf("Certificate OIDC Issuer: %s\n", certIssuer)
-			}
-			if certIssuerRegex != "" {
-				fmt.Printf("Certificate OIDC Issuer Regex: %s\n", certIssuerRegex)
-			}
-
-			// Global flags
-			tufURL := c.String("tuf-url")
-			tufRoot := c.String("tuf-root")
-			tufCachePath := c.String("tuf-cache-path")
-			fmt.Printf("TUF URL: %s\n", tufURL)
-			fmt.Printf("TUF Root: %s\n", tufRoot)
-			fmt.Printf("TUF Cache Path: %s\n", tufCachePath)
-			fmt.Printf("TUF Cache TTL: %s\n", c.Duration("tuf-cache-ttl"))
-			fmt.Printf("Signing Config: %s\n", c.String("signing-config"))
-			fmt.Printf("Trusted Root: %s\n", c.String("trusted-root"))
-
-			fmt.Println("============================")
 
 			// 1. Load bundle from file
 			b, err := bundle.LoadJSONFromPath(bundlePath)
@@ -185,6 +150,10 @@ func VerifyCommand() *urfavecli.Command {
 				}
 			} else {
 				// Get from TUF
+				tufURL := c.String("tuf-url")
+				tufRoot := c.String("tuf-root")
+				tufCachePath := c.String("tuf-cache-path")
+
 				// Expand ~ to home directory in cache path
 				if tufCachePath[:1] == "~" {
 					home, err := os.UserHomeDir()
