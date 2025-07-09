@@ -16,11 +16,6 @@ The goal of this project is:
 - To experiment with UX design without the constraints of backwards compatibility.
 - To inform the direction of Cosign v3+.
 
-Non-goals include:
-
-- To implement all of the features of Cosign.
-- Code quality is not a primary focus of this project, but that may change in the future. This is vibe-driven development.
-
 ## Installation
 
 Install with `go install`:
