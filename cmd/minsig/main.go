@@ -50,6 +50,7 @@ func main() {
 		Commands: []*urfavecli.Command{
 			SignCommand(),
 			VerifyCommand(),
+			UpdateTufCommand(),
 		},
 	}
 

@@ -6,14 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/sigstore/sigstore-go/pkg/bundle"
 	"github.com/sigstore/sigstore-go/pkg/root"
-	"github.com/sigstore/sigstore-go/pkg/tuf"
-	"github.com/sigstore/sigstore-go/pkg/util"
 	"github.com/sigstore/sigstore-go/pkg/verify"
-	"github.com/theupdateframework/go-tuf/v2/metadata/fetcher"
 	urfavecli "github.com/urfave/cli/v3"
 )
 
@@ -150,50 +146,15 @@ func VerifyCommand() *urfavecli.Command {
 				}
 			} else {
 				// Get from TUF
-				tufURL := c.String("tuf-url")
-				tufRoot := c.String("tuf-root")
-				tufCachePath := c.String("tuf-cache-path")
-
-				// Expand ~ to home directory in cache path
-				if tufCachePath[:1] == "~" {
-					home, err := os.UserHomeDir()
-					if err != nil {
-						return fmt.Errorf("failed to get home directory: %w", err)
-					}
-					tufCachePath = filepath.Join(home, tufCachePath[1:])
-				}
-
-				// Setup TUF options
-				tufOptions := &tuf.Options{
-					RepositoryBaseURL: tufURL,
-					CachePath:         tufCachePath,
-				}
-
-				// Setup TUF fetcher
-				fetcher := fetcher.DefaultFetcher{}
-				fetcher.SetHTTPUserAgent(util.ConstructUserAgent())
-				tufOptions.Fetcher = &fetcher
-
-				// If custom root file provided
-				if tufRoot != "" {
-					rootBytes, err := os.ReadFile(tufRoot)
-					if err != nil {
-						return fmt.Errorf("failed to read TUF root file: %w", err)
-					}
-					tufOptions.Root = rootBytes
-				} else {
-					tufOptions.Root = tuf.DefaultRoot()
-				}
-
-				// Get TUF client
-				tufClient, err := tuf.New(tufOptions)
+				_, trustedRoot, err = fetchTrustedRoot(
+					c.String("tuf-url"),
+					c.String("tuf-root"),
+					c.String("tuf-cache-path"),
+					false, // verbose
+					false, // disableLocalCache
+				)
 				if err != nil {
-					return fmt.Errorf("failed to create TUF client: %w", err)
-				}
-
-				trustedRoot, err = root.GetTrustedRoot(tufClient)
-				if err != nil {
-					return fmt.Errorf("failed to get trusted root from TUF: %w", err)
+					return err
 				}
 			}
 

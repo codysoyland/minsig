@@ -45,7 +45,7 @@ go vet ./...
 ```
 
 ## Main Commands
-The tool provides two main commands:
+The tool provides three main commands:
 
 ### 1. Sign Command
 ```bash
@@ -72,6 +72,15 @@ minsig verify \
     --attestation=true \
     --certificate-identity <expected-identity> \
     --certificate-oidc-issuer <expected-issuer>
+```
+
+### 3. Update TUF Command
+```bash
+# Update TUF cache
+minsig update-tuf
+
+# Force update with verbose output
+minsig update-tuf --force --verbose
 ```
 
 ## Development Notes
@@ -105,7 +114,7 @@ Contributions are not currently accepted. For questions or feedback, reach out i
 - **Extending functionality**: Follow the existing urfave/cli/v3 pattern
 - **Testing changes**: Build with `go build ./cmd/minsig` and test manually
 - **Debugging**: Use standard Go debugging tools and logging
-- **Fetching trusted root**: Copy from `~/.sigstore/tuf/tuf-repo-cdn.sigstore.dev/targets/trusted_root.json` to `testdata/`
+- **Fetching trusted root**: Update TUF cache and copy the trusted root from `~/.sigstore/tuf/tuf-repo-cdn.sigstore.dev/targets/trusted_root.json` to `testdata/`
 
 ## Testing Notes
 - To fetch the sigstore trusted root, copy the trusted_root.json from the tuf cache (~/.sigstore/tuf) into the testdata directory
