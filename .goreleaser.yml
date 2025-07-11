@@ -24,7 +24,6 @@ builds:
 
 archives:
   - id: default
-    format: tar.gz
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -67,7 +66,8 @@ kos:
   - id: minsig
     build: minsig
     base_image: gcr.io/distroless/static-debian12
-    repository: ghcr.io/codysoyland/minsig
+    repositories:
+      - ghcr.io/codysoyland/minsig
     tags:
       - "{{ .Tag }}"
       - "v{{ .Major }}"
