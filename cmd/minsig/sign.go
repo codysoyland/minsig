@@ -190,28 +190,31 @@ func SignCommand() *urfavecli.Command {
 				}
 			}
 
-			var idToken = c.String("id-token")
-			if idToken == "" {
-				var issuer = "https://oauth2.sigstore.dev/auth"
-				var clientID = "sigstore"
-				token, err := oauthflow.OIDConnect(issuer, clientID, "", "", oauthflow.DefaultIDTokenGetter)
-				if err != nil {
-					return fmt.Errorf("failed to get OIDC token: %w", err)
+			// Only setup certificate provider if no private key is provided
+			if keyPath == "" {
+				var idToken = c.String("id-token")
+				if idToken == "" {
+					var issuer = "https://oauth2.sigstore.dev/auth"
+					var clientID = "sigstore"
+					token, err := oauthflow.OIDConnect(issuer, clientID, "", "", oauthflow.DefaultIDTokenGetter)
+					if err != nil {
+						return fmt.Errorf("failed to get OIDC token: %w", err)
+					}
+					idToken = token.RawString
 				}
-				idToken = token.RawString
-			}
-			fulcioURL, err := root.SelectService(signingConfig.FulcioCertificateAuthorityURLs(), []uint32{1}, time.Now())
-			if err != nil {
-				log.Fatal(err)
-			}
-			fulcioOpts := &sign.FulcioOptions{
-				BaseURL: fulcioURL,
-				Timeout: time.Duration(30 * time.Second),
-				Retries: 1,
-			}
-			opts.CertificateProvider = sign.NewFulcio(fulcioOpts)
-			opts.CertificateProviderOptions = &sign.CertificateProviderOptions{
-				IDToken: idToken,
+				fulcioURL, err := root.SelectService(signingConfig.FulcioCertificateAuthorityURLs(), []uint32{1}, time.Now())
+				if err != nil {
+					log.Fatal(err)
+				}
+				fulcioOpts := &sign.FulcioOptions{
+					BaseURL: fulcioURL,
+					Timeout: time.Duration(30 * time.Second),
+					Retries: 1,
+				}
+				opts.CertificateProvider = sign.NewFulcio(fulcioOpts)
+				opts.CertificateProviderOptions = &sign.CertificateProviderOptions{
+					IDToken: idToken,
+				}
 			}
 
 			// Setup Timestamp Authority
@@ -235,8 +238,8 @@ func SignCommand() *urfavecli.Command {
 				}
 			}
 
-			// Setup Rekor transparency log
-			if !c.Bool("skip-rekor") {
+			// Setup Rekor transparency log (only when using ephemeral keys with certificates)
+			if !c.Bool("skip-rekor") && keyPath == "" {
 				rekorURLs, err := root.SelectServices(
 					signingConfig.RekorLogURLs(),
 					signingConfig.RekorLogURLsConfig(),
