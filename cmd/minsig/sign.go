@@ -32,7 +32,7 @@ func SignCommand() *urfavecli.Command {
 			},
 			&urfavecli.StringFlag{
 				Name:  "key",
-				Usage: "Path to the private key to use for signing. Supports PEM-encoded PKCS#1 (RSA), PKCS#8 (RSA/ECDSA), and SEC 1 (ECDSA) formats. When provided, skips OIDC authentication.",
+				Usage: "Path to the private key to use for signing. Supports PEM-encoded PKCS#1 (RSA), PKCS#8 (RSA/ECDSA), and SEC 1 (ECDSA) formats. When provided, no certificate will be requested",
 			},
 			&urfavecli.BoolFlag{
 				Name:  "skip-tsa",
@@ -41,7 +41,7 @@ func SignCommand() *urfavecli.Command {
 			},
 			&urfavecli.BoolFlag{
 				Name:  "skip-rekor",
-				Usage: "Bool to indicate if the Rekor entry should be skipped",
+				Usage: "Bool to indicate if the Rekor upload should be skipped",
 				Value: false,
 			},
 			&urfavecli.BoolFlag{
@@ -55,7 +55,7 @@ func SignCommand() *urfavecli.Command {
 			},
 			&urfavecli.StringFlag{
 				Name:  "id-token",
-				Usage: "OIDC token to send to Fulcio",
+				Usage: "OIDC token to send to Fulcio. If not provided, the web-based flow will be used",
 			},
 		},
 		Action: func(ctx context.Context, c *urfavecli.Command) error {
@@ -110,7 +110,7 @@ func SignCommand() *urfavecli.Command {
 				if err != nil {
 					return fmt.Errorf("failed to load private key: %w", err)
 				}
-				
+
 				// Create keypair from loaded private key
 				keypair = NewPrivateKeyKeypair(privateKey)
 			} else {
@@ -190,31 +190,28 @@ func SignCommand() *urfavecli.Command {
 				}
 			}
 
-			// Only use Fulcio/OIDC when using ephemeral keys (not when loading from file)
-			if keyPath == "" {
-				var idToken = c.String("id-token")
-				if idToken == "" {
-					var issuer = "https://oauth2.sigstore.dev/auth"
-					var clientID = "sigstore"
-					token, err := oauthflow.OIDConnect(issuer, clientID, "", "", oauthflow.DefaultIDTokenGetter)
-					if err != nil {
-						return fmt.Errorf("failed to get OIDC token: %w", err)
-					}
-					idToken = token.RawString
-				}
-				fulcioURL, err := root.SelectService(signingConfig.FulcioCertificateAuthorityURLs(), []uint32{1}, time.Now())
+			var idToken = c.String("id-token")
+			if idToken == "" {
+				var issuer = "https://oauth2.sigstore.dev/auth"
+				var clientID = "sigstore"
+				token, err := oauthflow.OIDConnect(issuer, clientID, "", "", oauthflow.DefaultIDTokenGetter)
 				if err != nil {
-					log.Fatal(err)
+					return fmt.Errorf("failed to get OIDC token: %w", err)
 				}
-				fulcioOpts := &sign.FulcioOptions{
-					BaseURL: fulcioURL,
-					Timeout: time.Duration(30 * time.Second),
-					Retries: 1,
-				}
-				opts.CertificateProvider = sign.NewFulcio(fulcioOpts)
-				opts.CertificateProviderOptions = &sign.CertificateProviderOptions{
-					IDToken: idToken,
-				}
+				idToken = token.RawString
+			}
+			fulcioURL, err := root.SelectService(signingConfig.FulcioCertificateAuthorityURLs(), []uint32{1}, time.Now())
+			if err != nil {
+				log.Fatal(err)
+			}
+			fulcioOpts := &sign.FulcioOptions{
+				BaseURL: fulcioURL,
+				Timeout: time.Duration(30 * time.Second),
+				Retries: 1,
+			}
+			opts.CertificateProvider = sign.NewFulcio(fulcioOpts)
+			opts.CertificateProviderOptions = &sign.CertificateProviderOptions{
+				IDToken: idToken,
 			}
 
 			// Setup Timestamp Authority
