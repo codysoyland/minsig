@@ -36,8 +36,8 @@ func UpdateTufCommand() *urfavecli.Command {
 				fmt.Println("Force update requested, bypassing cache TTL")
 			}
 
-			// Create TUF client and fetch trusted root
-			_, _, err := fetchTrustedRoot(
+			// Create TUF client to update cache
+			_, err := createTUFClient(
 				c.String("tuf-url"),
 				c.String("tuf-root"),
 				c.String("tuf-cache-path"),
