@@ -170,7 +170,7 @@ func VerifyCommand() *urfavecli.Command {
 			}
 
 			// 5. Create SignedEntityVerifier
-			sev, err := verify.NewSignedEntityVerifier(trustedMaterial, verifierConfig...)
+			sev, err := verify.NewVerifier(trustedMaterial, verifierConfig...)
 			if err != nil {
 				return fmt.Errorf("failed to create signed entity verifier: %w", err)
 			}
