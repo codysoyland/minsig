@@ -146,7 +146,7 @@ func VerifyCommand() *urfavecli.Command {
 				}
 			} else {
 				// Get from TUF
-				_, trustedRoot, err = fetchTrustedRoot(
+				tufClient, err := createTUFClient(
 					c.String("tuf-url"),
 					c.String("tuf-root"),
 					c.String("tuf-cache-path"),
@@ -155,6 +155,11 @@ func VerifyCommand() *urfavecli.Command {
 				)
 				if err != nil {
 					return err
+				}
+
+				trustedRoot, err = root.GetTrustedRoot(tufClient)
+				if err != nil {
+					return fmt.Errorf("failed to get trusted root from TUF: %w", err)
 				}
 			}
 
@@ -165,7 +170,7 @@ func VerifyCommand() *urfavecli.Command {
 			}
 
 			// 5. Create SignedEntityVerifier
-			sev, err := verify.NewSignedEntityVerifier(trustedMaterial, verifierConfig...)
+			sev, err := verify.NewVerifier(trustedMaterial, verifierConfig...)
 			if err != nil {
 				return fmt.Errorf("failed to create signed entity verifier: %w", err)
 			}

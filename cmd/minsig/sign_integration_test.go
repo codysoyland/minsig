@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	urfavecli "github.com/urfave/cli/v3"
 )
 
 func TestSignCommandWithPrivateKey(t *testing.T) {
@@ -34,11 +36,21 @@ func TestSignCommandWithPrivateKey(t *testing.T) {
 		t.Skipf("Private key not found at %s, skipping test", privateKeyPath)
 	}
 
-	// Create the sign command
-	signCmd := SignCommand()
+	// Create a full CLI app with global flags
+	trustedRootPath := filepath.Join(testDataDir, "trusted_root.json")
+	app := &urfavecli.Command{
+		Name:  "minsig",
+		Usage: "A CLI tool for signing and verifying artifacts",
+		Flags: GlobalFlags(),
+		Commands: []*urfavecli.Command{
+			SignCommand(),
+		},
+	}
 
 	// Prepare arguments for signing with private key
 	args := []string{
+		"minsig",
+		"--trusted-root", trustedRootPath,
 		"sign",
 		"--artifact", artifactPath,
 		"--key", privateKeyPath,
@@ -51,7 +63,7 @@ func TestSignCommandWithPrivateKey(t *testing.T) {
 	ctx := context.Background()
 
 	// Execute the sign command
-	err = signCmd.Run(ctx, args)
+	err = app.Run(ctx, args)
 	if err != nil {
 		t.Fatalf("Sign command failed: %v", err)
 	}

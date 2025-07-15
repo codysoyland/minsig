@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	v1 "github.com/sigstore/protobuf-specs/gen/pb-go/trustroot/v1"
 	"github.com/sigstore/sigstore-go/pkg/root"
 	"github.com/sigstore/sigstore-go/pkg/sign"
 	"github.com/sigstore/sigstore/pkg/oauthflow"
@@ -140,53 +139,21 @@ func SignCommand() *urfavecli.Command {
 					return fmt.Errorf("failed to read signing config file: %w", err)
 				}
 			} else {
-				// TODO: Add support for getting signing config from TUF
-				signingConfig, err = root.NewSigningConfig(
-					root.SigningConfigMediaType02,
-					// Fulcio URLs
-					[]root.Service{
-						{
-							URL:                 "https://fulcio.sigstore.dev",
-							MajorAPIVersion:     1,
-							ValidityPeriodStart: time.Now().Add(-time.Hour),
-							ValidityPeriodEnd:   time.Now().Add(time.Hour),
-						},
-					},
-					// OIDC Provider URLs
-					[]root.Service{
-						{
-							URL:                 "https://oauth2.sigstore.dev/auth",
-							MajorAPIVersion:     1,
-							ValidityPeriodStart: time.Now().Add(-time.Hour),
-							ValidityPeriodEnd:   time.Now().Add(time.Hour),
-						},
-					},
-					// Rekor URLs
-					[]root.Service{
-						{
-							URL:                 "https://rekor.sigstore.dev",
-							MajorAPIVersion:     1,
-							ValidityPeriodStart: time.Now().Add(-time.Hour),
-							ValidityPeriodEnd:   time.Now().Add(time.Hour),
-						},
-					},
-					root.ServiceConfiguration{
-						Selector: v1.ServiceSelector_ANY,
-					},
-					[]root.Service{
-						{
-							URL:                 "https://timestamp.githubapp.com/api/v1/timestamp",
-							MajorAPIVersion:     1,
-							ValidityPeriodStart: time.Now().Add(-time.Hour),
-							ValidityPeriodEnd:   time.Now().Add(time.Hour),
-						},
-					},
-					root.ServiceConfiguration{
-						Selector: v1.ServiceSelector_ANY,
-					},
+				// Get signing config from TUF
+				tufClient, err := createTUFClient(
+					c.String("tuf-url"),
+					c.String("tuf-root"),
+					c.String("tuf-cache-path"),
+					false, // verbose
+					false, // disableLocalCache
 				)
 				if err != nil {
-					return fmt.Errorf("failed to create signing config: %w", err)
+					return fmt.Errorf("failed to create TUF client: %w", err)
+				}
+
+				signingConfig, err = GetSigningConfig(tufClient)
+				if err != nil {
+					return fmt.Errorf("failed to get signing config from TUF: %w", err)
 				}
 			}
 
@@ -194,9 +161,14 @@ func SignCommand() *urfavecli.Command {
 			if keyPath == "" {
 				var idToken = c.String("id-token")
 				if idToken == "" {
-					var issuer = "https://oauth2.sigstore.dev/auth"
+					// Get OIDC issuer from signing config
+					oidcIssuer, err := root.SelectService(signingConfig.OIDCProviderURLs(), []uint32{1}, time.Now())
+					if err != nil {
+						return fmt.Errorf("failed to select OIDC issuer: %w", err)
+					}
+
 					var clientID = "sigstore"
-					token, err := oauthflow.OIDConnect(issuer, clientID, "", "", oauthflow.DefaultIDTokenGetter)
+					token, err := oauthflow.OIDConnect(oidcIssuer, clientID, "", "", oauthflow.DefaultIDTokenGetter)
 					if err != nil {
 						return fmt.Errorf("failed to get OIDC token: %w", err)
 					}

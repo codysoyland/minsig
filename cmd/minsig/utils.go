@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,6 +21,10 @@ import (
 	"github.com/sigstore/sigstore-go/pkg/util"
 	"github.com/theupdateframework/go-tuf/v2/metadata/fetcher"
 )
+
+// SigstoreStagingRoot contains the embedded sigstage TUF root
+//go:embed sigstage-root.json
+var SigstoreStagingRoot []byte
 
 // loadPrivateKeyFromFile loads a private key from a PEM-encoded file
 // Supports PKCS#1 (RSA), PKCS#8 (RSA/ECDSA/Ed25519), and EC private keys
@@ -151,14 +156,13 @@ func (p *PrivateKeyKeypair) SignData(ctx context.Context, data []byte) ([]byte, 
 	return signature, hash[:], nil
 }
 
-// fetchTrustedRoot creates a TUF client and fetches the trusted root
-func fetchTrustedRoot(tufURL, tufRoot, tufCachePath string, verbose bool, disableLocalCache bool) (*tuf.Client, *root.TrustedRoot, error) {
-
+// createTUFClient creates and configures a TUF client with the given options
+func createTUFClient(tufURL, tufRoot, tufCachePath string, verbose bool, _ bool) (*tuf.Client, error) {
 	// Expand ~ to home directory in cache path
-	if tufCachePath[:1] == "~" {
+	if len(tufCachePath) > 0 && tufCachePath[:1] == "~" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get home directory: %w", err)
+			return nil, fmt.Errorf("failed to get home directory: %w", err)
 		}
 		tufCachePath = filepath.Join(home, tufCachePath[1:])
 	}
@@ -168,16 +172,15 @@ func fetchTrustedRoot(tufURL, tufRoot, tufCachePath string, verbose bool, disabl
 		fmt.Printf("Cache path: %s\n", tufCachePath)
 	}
 
-	// Setup TUF options
-	tufOptions := &tuf.Options{
-		RepositoryBaseURL: tufURL,
-		CachePath:         tufCachePath,
-	}
+	// Setup TUF options using defaults
+	tufOptions := tuf.DefaultOptions()
+	tufOptions = tufOptions.WithRepositoryBaseURL(tufURL)
+	tufOptions = tufOptions.WithCachePath(tufCachePath)
 
 	// Setup TUF fetcher
-	fetcher := fetcher.DefaultFetcher{}
+	fetcher := fetcher.NewDefaultFetcher()
 	fetcher.SetHTTPUserAgent(util.ConstructUserAgent())
-	tufOptions.Fetcher = &fetcher
+	tufOptions = tufOptions.WithFetcher(fetcher)
 
 	// If custom root file provided
 	if tufRoot != "" {
@@ -186,22 +189,14 @@ func fetchTrustedRoot(tufURL, tufRoot, tufCachePath string, verbose bool, disabl
 		}
 		rootBytes, err := os.ReadFile(tufRoot)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to read TUF root file: %w", err)
+			return nil, fmt.Errorf("failed to read TUF root file: %w", err)
 		}
-		tufOptions.Root = rootBytes
+		tufOptions = tufOptions.WithRoot(rootBytes)
 	} else {
 		if verbose {
-			fmt.Println("Using default TUF root")
+			fmt.Println("Using embedded sigstage TUF root")
 		}
-		tufOptions.Root = tuf.DefaultRoot()
-	}
-
-	// Configure cache behavior
-	if disableLocalCache {
-		if verbose {
-			fmt.Println("Disabling local cache for forced update")
-		}
-		tufOptions.DisableLocalCache = true
+		tufOptions = tufOptions.WithRoot(SigstoreStagingRoot)
 	}
 
 	// Create TUF client
@@ -210,17 +205,18 @@ func fetchTrustedRoot(tufURL, tufRoot, tufCachePath string, verbose bool, disabl
 	}
 	tufClient, err := tuf.New(tufOptions)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create TUF client: %w", err)
+		return nil, fmt.Errorf("failed to create TUF client: %w", err)
 	}
 
-	// Fetch the trusted root
-	if verbose {
-		fmt.Println("Fetching trusted root...")
-	}
-	trustedRoot, err := root.GetTrustedRoot(tufClient)
+	return tufClient, nil
+}
+
+// GetSigningConfig fetches the public-good Sigstore signing configuration target from TUF.
+// TODO: Use root.GetSigningConfig whenever sigstore-go is updated to use signing_config.v0.2.json
+func GetSigningConfig(c *tuf.Client) (*root.SigningConfig, error) {
+	jsonBytes, err := c.GetTarget("signing_config.v0.2.json")
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get trusted root from TUF: %w", err)
+		return nil, err
 	}
-
-	return tufClient, trustedRoot, nil
+	return root.NewSigningConfigFromJSON(jsonBytes)
 }

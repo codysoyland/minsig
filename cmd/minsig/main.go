@@ -15,11 +15,11 @@ func GlobalFlags() []urfavecli.Flag {
 		&urfavecli.StringFlag{
 			Name:  "tuf-url",
 			Usage: "URL to the TUF repository",
-			Value: "https://tuf-repo-cdn.sigstore.dev",
+			Value: "https://tuf-repo-cdn.sigstage.dev",
 		},
 		&urfavecli.StringFlag{
 			Name:  "tuf-root",
-			Usage: "Path to the TUF root file. Default is embedded for tuf-repo-cdn.sigstore.dev",
+			Usage: "Path to the TUF root file. Default is embedded root (sigstore staging)",
 		},
 		&urfavecli.StringFlag{
 			Name:  "tuf-cache-path",
