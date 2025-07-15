@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,10 @@ import (
 	"github.com/sigstore/sigstore-go/pkg/util"
 	"github.com/theupdateframework/go-tuf/v2/metadata/fetcher"
 )
+
+// SigstoreStagingRoot contains the embedded sigstage TUF root
+//go:embed sigstage-root.json
+var SigstoreStagingRoot []byte
 
 // createTUFClient creates and configures a TUF client with the given options
 func createTUFClient(tufURL, tufRoot, tufCachePath string, verbose bool, disableLocalCache bool) (*tuf.Client, error) {
@@ -49,9 +54,9 @@ func createTUFClient(tufURL, tufRoot, tufCachePath string, verbose bool, disable
 		tufOptions = tufOptions.WithRoot(rootBytes)
 	} else {
 		if verbose {
-			fmt.Println("Using default TUF root")
+			fmt.Println("Using embedded sigstage TUF root")
 		}
-		tufOptions = tufOptions.WithRoot(tuf.DefaultRoot())
+		tufOptions = tufOptions.WithRoot(SigstoreStagingRoot)
 	}
 
 	// Create TUF client
