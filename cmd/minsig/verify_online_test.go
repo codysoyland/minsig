@@ -49,7 +49,7 @@ func TestVerifyCommandWithTUF(t *testing.T) {
 			"--artifact", artifactPath,
 			"--certificate-identity", "cody@soyland.com",
 			"--certificate-oidc-issuer", "https://github.com/login/oauth",
-			"--tuf-url", "https://tuf-repo-cdn.sigstore.dev",
+			"--tuf-url", "https://tuf-repo-cdn.sigstage.dev",
 		}
 
 		// Run the command
@@ -77,7 +77,7 @@ func TestVerifyCommandWithTUF(t *testing.T) {
 			"--artifact", artifactPath,
 			"--certificate-identity", "cody@soyland.com",
 			"--certificate-oidc-issuer", "https://github.com/login/oauth",
-			"--tuf-url", "https://tuf-repo-cdn.sigstore.dev",
+			"--tuf-url", "https://tuf-repo-cdn.sigstage.dev",
 			"--tuf-cache-path", os.TempDir() + "/sigstore-test-tuf",
 		}
 

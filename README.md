@@ -6,7 +6,7 @@ A minimalist command-line tool for signing and verifying artifacts using Sigstor
 
 ## Status
 
-Experimental. This tool is not yet ready for production use.
+Experimental, not safe to use at this point!
 
 ## Philosophy
 
