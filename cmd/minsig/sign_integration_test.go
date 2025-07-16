@@ -47,7 +47,7 @@ func TestSignCommandWithPrivateKey(t *testing.T) {
 		},
 	}
 
-	// Prepare arguments for signing with private key
+	// Prepare arguments for signing with private key and TSA
 	args := []string{
 		"minsig",
 		"--trusted-root", trustedRootPath,
@@ -55,8 +55,7 @@ func TestSignCommandWithPrivateKey(t *testing.T) {
 		"--artifact", artifactPath,
 		"--key", privateKeyPath,
 		"--output", outputPath,
-		"--skip-tsa",   // Skip timestamp authority for test
-		"--skip-rekor", // Skip transparency log for test
+		"--skip-rekor", // Skip transparency log for test, but keep TSA for signed timestamps
 	}
 
 	// Create a test context
@@ -102,6 +101,39 @@ func TestSignCommandWithPrivateKey(t *testing.T) {
 
 	t.Logf("Successfully created signature bundle with private key")
 	t.Logf("Bundle size: %d bytes", len(bundleBytes))
+	
+	// Test verification with public key
+	publicKeyPath := filepath.Join(testDataDir, "test-public-key.pem")
+	if _, err := os.Stat(publicKeyPath); os.IsNotExist(err) {
+		t.Skipf("Public key not found at %s, skipping verification test", publicKeyPath)
+	}
+	
+	// Create a full CLI app for verification
+	verifyApp := &urfavecli.Command{
+		Name:  "minsig",
+		Usage: "A CLI tool for signing and verifying artifacts",
+		Flags: GlobalFlags(),
+		Commands: []*urfavecli.Command{
+			VerifyCommand(),
+		},
+	}
+	
+	// Prepare arguments for verifying with public key
+	verifyArgs := []string{
+		"minsig",
+		"verify",
+		"--artifact", artifactPath,
+		"--bundle", outputPath,
+		"--public-key", publicKeyPath,
+	}
+	
+	// Execute the verify command
+	err = verifyApp.Run(ctx, verifyArgs)
+	if err != nil {
+		t.Fatalf("Verify command failed: %v", err)
+	}
+	
+	t.Logf("Successfully verified signature bundle with public key")
 }
 
 func TestSignCommandPrivateKeyValidation(t *testing.T) {

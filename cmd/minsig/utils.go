@@ -156,6 +156,47 @@ func (p *PrivateKeyKeypair) SignData(ctx context.Context, data []byte) ([]byte, 
 	return signature, hash[:], nil
 }
 
+// loadPublicKeyFromFile loads a public key from a PEM-encoded file
+func loadPublicKeyFromFile(keyPath string) (crypto.PublicKey, error) {
+	keyBytes, err := os.ReadFile(keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read public key file: %w", err)
+	}
+
+	// Decode PEM block
+	block, _ := pem.Decode(keyBytes)
+	if block == nil {
+		return nil, errors.New("failed to decode PEM block from public key file")
+	}
+
+	var publicKey crypto.PublicKey
+
+	switch block.Type {
+	case "PUBLIC KEY":
+		// PKIX format - supports RSA, ECDSA, Ed25519
+		publicKey, err = x509.ParsePKIXPublicKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse PKIX public key: %w", err)
+		}
+	case "RSA PUBLIC KEY":
+		// PKCS#1 format - RSA only
+		publicKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse PKCS#1 RSA public key: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported public key type: %s", block.Type)
+	}
+
+	// Validate that we got a supported key type
+	switch publicKey.(type) {
+	case *rsa.PublicKey, *ecdsa.PublicKey:
+		return publicKey, nil
+	default:
+		return nil, fmt.Errorf("unsupported public key algorithm: %T", publicKey)
+	}
+}
+
 // createTUFClient creates and configures a TUF client with the given options
 func createTUFClient(tufURL, tufRoot, tufCachePath string, verbose bool, _ bool) (*tuf.Client, error) {
 	// Expand ~ to home directory in cache path
