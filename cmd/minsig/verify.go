@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto"
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -85,13 +87,13 @@ func VerifyCommand() *urfavecli.Command {
 
 			// Check if public key verification is requested
 			publicKeyPath := c.String("public-key")
-			
+
 			// Get certificate verification parameters
 			certIdentity := c.String("certificate-identity")
 			certIdentityRegex := c.String("certificate-identity-regex")
 			certIssuer := c.String("certificate-oidc-issuer")
 			certIssuerRegex := c.String("certificate-oidc-issuer-regex")
-			
+
 			// For certificate-based verification, require identity and issuer
 			if publicKeyPath == "" {
 				// Require either certificate-identity or certificate-identity-regex
@@ -124,10 +126,10 @@ func VerifyCommand() *urfavecli.Command {
 			if publicKeyPath != "" {
 				// Public key verification: expect signed timestamps from TSA
 				verifierConfig = append(verifierConfig, verify.WithSignedTimestamps(1))
-				
+
 				// Only add additional requirements if explicitly set
 				if c.IsSet("require-sct") && c.Bool("require-sct") {
-					verifierConfig = append(verifierConfig, verify.WithSignedCertificateTimestamps(1))
+					return errors.New("Signed Certificate Timestamps (SCT) are not applicable for public key verification")
 				}
 				if c.IsSet("require-transparency-log") && c.Bool("require-transparency-log") {
 					verifierConfig = append(verifierConfig, verify.WithTransparencyLog(1))
@@ -152,7 +154,7 @@ func VerifyCommand() *urfavecli.Command {
 
 			// 3. Configure identity verification
 			var identityPolicies []verify.PolicyOption
-			
+
 			if publicKeyPath != "" {
 				// Public key verification: use WithKey policy
 				identityPolicies = []verify.PolicyOption{verify.WithKey()}
@@ -208,21 +210,9 @@ func VerifyCommand() *urfavecli.Command {
 				if err != nil {
 					return fmt.Errorf("failed to load public key: %w", err)
 				}
-				
-				// Create a verifier from the public key
-				verifier, err := signature.LoadDefaultVerifier(publicKey)
-				if err != nil {
-					return fmt.Errorf("failed to create verifier from public key: %w", err)
-				}
-				
-				// Create an expiring key (using a very long validity period since we don't have specific timing requirements)
-				expiringKey := root.NewExpiringKey(verifier, time.Unix(0, 0), time.Unix(4102444800, 0)) // From 1970 to 2100
-				
-				// Create trusted public key material
-				trustedPublicKeys := map[string]*root.ExpiringKey{
-					"public-key": expiringKey,
-				}
-				trustedPublicKeyMaterial := root.NewTrustedPublicKeyMaterialFromMapping(trustedPublicKeys)
+
+				// Create trusted public key material using the helper function
+				trustedPublicKeyMaterial := trustedPublicKeyMaterial(publicKey)
 				trustedMaterial = append(trustedMaterial, trustedPublicKeyMaterial)
 			} else {
 				// Get trusted root for certificate-based verification
@@ -302,4 +292,22 @@ func VerifyCommand() *urfavecli.Command {
 			return nil
 		},
 	}
+}
+
+func trustedPublicKeyMaterial(pk crypto.PublicKey) *root.TrustedPublicKeyMaterial {
+	return root.NewTrustedPublicKeyMaterial(func(string) (root.TimeConstrainedVerifier, error) {
+		verifier, err := signature.LoadECDSAVerifier(pk.(*ecdsa.PublicKey), crypto.SHA256)
+		if err != nil {
+			return nil, err
+		}
+		return &nonExpiringVerifier{verifier}, nil
+	})
+}
+
+type nonExpiringVerifier struct {
+	signature.Verifier
+}
+
+func (*nonExpiringVerifier) ValidAtTime(_ time.Time) bool {
+	return true
 }

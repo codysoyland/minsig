@@ -8,9 +8,9 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	_ "embed"
 	"encoding/pem"
 	"errors"
-	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,6 +23,7 @@ import (
 )
 
 // SigstoreStagingRoot contains the embedded sigstage TUF root
+//
 //go:embed sigstage-root.json
 var SigstoreStagingRoot []byte
 
@@ -109,7 +110,7 @@ func (p *PrivateKeyKeypair) GetKeyAlgorithm() string {
 // GetPublicKeyPem returns the public key in PEM format
 func (p *PrivateKeyKeypair) GetPublicKeyPem() (string, error) {
 	var publicKey crypto.PublicKey
-	
+
 	switch priv := p.privateKey.(type) {
 	case *rsa.PrivateKey:
 		publicKey = &priv.PublicKey
@@ -118,17 +119,17 @@ func (p *PrivateKeyKeypair) GetPublicKeyPem() (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported private key type: %T", p.privateKey)
 	}
-	
+
 	publicKeyBytes, err := x509.MarshalPKIXPublicKey(publicKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal public key: %w", err)
 	}
-	
+
 	publicKeyPem := pem.EncodeToMemory(&pem.Block{
 		Type:  "PUBLIC KEY",
 		Bytes: publicKeyBytes,
 	})
-	
+
 	return string(publicKeyPem), nil
 }
 
@@ -136,10 +137,10 @@ func (p *PrivateKeyKeypair) GetPublicKeyPem() (string, error) {
 func (p *PrivateKeyKeypair) SignData(ctx context.Context, data []byte) ([]byte, []byte, error) {
 	// Hash the data
 	hash := sha256.Sum256(data)
-	
+
 	var signature []byte
 	var err error
-	
+
 	switch priv := p.privateKey.(type) {
 	case *rsa.PrivateKey:
 		signature, err = rsa.SignPKCS1v15(rand.Reader, priv, crypto.SHA256, hash[:])
@@ -148,11 +149,11 @@ func (p *PrivateKeyKeypair) SignData(ctx context.Context, data []byte) ([]byte, 
 	default:
 		return nil, nil, fmt.Errorf("unsupported private key type for signing: %T", p.privateKey)
 	}
-	
+
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to sign data: %w", err)
 	}
-	
+
 	return signature, hash[:], nil
 }
 
