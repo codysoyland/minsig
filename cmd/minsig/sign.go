@@ -31,7 +31,7 @@ func SignCommand() *urfavecli.Command {
 			},
 			&urfavecli.StringFlag{
 				Name:  "key",
-				Usage: "Path to the private key to use for signing",
+				Usage: "Path to the private key to use for signing. Supports PEM-encoded PKCS#1 (RSA), PKCS#8 (RSA/ECDSA), and SEC 1 (ECDSA) formats. When provided, no certificate will be requested",
 			},
 			&urfavecli.BoolFlag{
 				Name:  "skip-tsa",
@@ -40,7 +40,7 @@ func SignCommand() *urfavecli.Command {
 			},
 			&urfavecli.BoolFlag{
 				Name:  "skip-rekor",
-				Usage: "Bool to indicate if the Rekor entry should be skipped",
+				Usage: "Bool to indicate if the Rekor upload should be skipped",
 				Value: false,
 			},
 			&urfavecli.BoolFlag{
@@ -54,7 +54,7 @@ func SignCommand() *urfavecli.Command {
 			},
 			&urfavecli.StringFlag{
 				Name:  "id-token",
-				Usage: "OIDC token to send to Fulcio",
+				Usage: "OIDC token to send to Fulcio. If not provided, the web-based flow will be used",
 			},
 		},
 		Action: func(ctx context.Context, c *urfavecli.Command) error {
@@ -104,7 +104,14 @@ func SignCommand() *urfavecli.Command {
 			var keypair sign.Keypair
 			keyPath := c.String("key")
 			if keyPath != "" {
-				// TODO: Implement keypair loading from file
+				// Load private key from file
+				privateKey, err := loadPrivateKeyFromFile(keyPath)
+				if err != nil {
+					return fmt.Errorf("failed to load private key: %w", err)
+				}
+
+				// Create keypair from loaded private key
+				keypair = NewPrivateKeyKeypair(privateKey)
 			} else {
 				// Create ephemeral keypair
 				keypair, err = sign.NewEphemeralKeypair(nil)
@@ -150,33 +157,36 @@ func SignCommand() *urfavecli.Command {
 				}
 			}
 
-			var idToken = c.String("id-token")
-			if idToken == "" {
-				// Get OIDC issuer from signing config
-				oidcIssuer, err := root.SelectService(signingConfig.OIDCProviderURLs(), []uint32{1}, time.Now())
-				if err != nil {
-					return fmt.Errorf("failed to select OIDC issuer: %w", err)
-				}
+			// Only setup certificate provider if no private key is provided
+			if keyPath == "" {
+				var idToken = c.String("id-token")
+				if idToken == "" {
+					// Get OIDC issuer from signing config
+					oidcIssuer, err := root.SelectService(signingConfig.OIDCProviderURLs(), []uint32{1}, time.Now())
+					if err != nil {
+						return fmt.Errorf("failed to select OIDC issuer: %w", err)
+					}
 
-				var clientID = "sigstore"
-				token, err := oauthflow.OIDConnect(oidcIssuer, clientID, "", "", oauthflow.DefaultIDTokenGetter)
-				if err != nil {
-					return fmt.Errorf("failed to get OIDC token: %w", err)
+					var clientID = "sigstore"
+					token, err := oauthflow.OIDConnect(oidcIssuer, clientID, "", "", oauthflow.DefaultIDTokenGetter)
+					if err != nil {
+						return fmt.Errorf("failed to get OIDC token: %w", err)
+					}
+					idToken = token.RawString
 				}
-				idToken = token.RawString
-			}
-			fulcioURL, err := root.SelectService(signingConfig.FulcioCertificateAuthorityURLs(), []uint32{1}, time.Now())
-			if err != nil {
-				log.Fatal(err)
-			}
-			fulcioOpts := &sign.FulcioOptions{
-				BaseURL: fulcioURL,
-				Timeout: time.Duration(30 * time.Second),
-				Retries: 1,
-			}
-			opts.CertificateProvider = sign.NewFulcio(fulcioOpts)
-			opts.CertificateProviderOptions = &sign.CertificateProviderOptions{
-				IDToken: idToken,
+				fulcioURL, err := root.SelectService(signingConfig.FulcioCertificateAuthorityURLs(), []uint32{1}, time.Now())
+				if err != nil {
+					log.Fatal(err)
+				}
+				fulcioOpts := &sign.FulcioOptions{
+					BaseURL: fulcioURL,
+					Timeout: time.Duration(30 * time.Second),
+					Retries: 1,
+				}
+				opts.CertificateProvider = sign.NewFulcio(fulcioOpts)
+				opts.CertificateProviderOptions = &sign.CertificateProviderOptions{
+					IDToken: idToken,
+				}
 			}
 
 			// Setup Timestamp Authority
@@ -200,8 +210,8 @@ func SignCommand() *urfavecli.Command {
 				}
 			}
 
-			// Setup Rekor transparency log
-			if !c.Bool("skip-rekor") {
+			// Setup Rekor transparency log (only when using ephemeral keys with certificates)
+			if !c.Bool("skip-rekor") && keyPath == "" {
 				rekorURLs, err := root.SelectServices(
 					signingConfig.RekorLogURLs(),
 					signingConfig.RekorLogURLsConfig(),
