@@ -167,11 +167,21 @@ func TestSignCommandPrivateKeyValidation(t *testing.T) {
 				t.Skipf("Test artifact not found at %s, skipping test", artifactPath)
 			}
 
-			// Create the sign command
-			signCmd := SignCommand()
+			// Create a full CLI app with global flags
+			trustedRootPath := filepath.Join(testDataDir, "trusted_root.json")
+			app := &urfavecli.Command{
+				Name:  "minsig",
+				Usage: "A CLI tool for signing and verifying artifacts",
+				Flags: GlobalFlags(),
+				Commands: []*urfavecli.Command{
+					SignCommand(),
+				},
+			}
 
 			// Prepare arguments
 			args := []string{
+				"minsig",
+				"--trusted-root", trustedRootPath,
 				"sign",
 				"--artifact", artifactPath,
 				"--key", tt.keyPath,
@@ -183,7 +193,7 @@ func TestSignCommandPrivateKeyValidation(t *testing.T) {
 			ctx := context.Background()
 
 			// Execute the command
-			err = signCmd.Run(ctx, args)
+			err = app.Run(ctx, args)
 
 			if tt.expectError {
 				if err == nil {
