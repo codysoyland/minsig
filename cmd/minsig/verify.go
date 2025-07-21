@@ -192,7 +192,6 @@ func VerifyCommand() *urfavecli.Command {
 						c.String("tuf-root"),
 						c.String("tuf-cache-path"),
 						false, // verbose
-						false, // disableLocalCache
 					)
 					if err != nil {
 						return err
@@ -235,7 +234,6 @@ func VerifyCommand() *urfavecli.Command {
 						c.String("tuf-root"),
 						c.String("tuf-cache-path"),
 						false, // verbose
-						false, // disableLocalCache
 					)
 					if err != nil {
 						return err

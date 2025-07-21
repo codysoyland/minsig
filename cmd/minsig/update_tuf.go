@@ -42,7 +42,6 @@ func UpdateTufCommand() *urfavecli.Command {
 				c.String("tuf-root"),
 				c.String("tuf-cache-path"),
 				verbose,
-				force, // disableLocalCache
 			)
 			if err != nil {
 				return err

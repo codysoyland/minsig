@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/codysoyland/minsig/pkg/sign"
-	"github.com/codysoyland/minsig/pkg/tuf"
 	"github.com/sigstore/sigstore-go/pkg/root"
 	urfavecli "github.com/urfave/cli/v3"
 )
@@ -78,27 +77,26 @@ func SignCommand() *urfavecli.Command {
 }
 
 // getTrustedMaterials fetches trusted root and signing config using TUF
-func getTrustedMaterials(ctx context.Context, c *urfavecli.Command) (*root.TrustedRoot, *root.SigningConfig, error) {
-	// Create TUF client
-	tufClient, err := tuf.New(tuf.Options{
-		URL:       c.String("tuf-url"),
-		RootPath:  c.String("tuf-root"),
-		CachePath: c.String("tuf-cache-path"),
-		CacheTTL:  c.Duration("tuf-cache-ttl"),
-	})
+func getTrustedMaterials(_ context.Context, c *urfavecli.Command) (*root.TrustedRoot, *root.SigningConfig, error) {
+	// Create TUF client using existing utils function
+	tufClient, err := createTUFClient(
+		c.String("tuf-url"),
+		c.String("tuf-root"),
+		c.String("tuf-cache-path"),
+		c.Bool("verbose"),
+	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create TUF client: %w", err)
 	}
-	defer tufClient.Close()
 
 	// Get trusted root
-	trustedRoot, err := tufClient.GetTrustedRoot(ctx)
+	trustedRoot, err := root.GetTrustedRoot(tufClient)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get trusted root: %w", err)
 	}
 
-	// Get signing config
-	signingConfig, err := tufClient.GetSigningConfig(ctx)
+	// Get signing config using existing utils function
+	signingConfig, err := GetSigningConfig(tufClient)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get signing config: %w", err)
 	}

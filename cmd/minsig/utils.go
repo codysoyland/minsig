@@ -18,8 +18,6 @@ import (
 	protocommon "github.com/sigstore/protobuf-specs/gen/pb-go/common/v1"
 	"github.com/sigstore/sigstore-go/pkg/root"
 	"github.com/sigstore/sigstore-go/pkg/tuf"
-	"github.com/sigstore/sigstore-go/pkg/util"
-	"github.com/theupdateframework/go-tuf/v2/metadata/fetcher"
 )
 
 // SigstoreStagingRoot contains the embedded sigstage TUF root
@@ -199,7 +197,7 @@ func loadPublicKeyFromFile(keyPath string) (crypto.PublicKey, error) {
 }
 
 // createTUFClient creates and configures a TUF client with the given options
-func createTUFClient(tufURL, tufRoot, tufCachePath string, verbose bool, _ bool) (*tuf.Client, error) {
+func createTUFClient(tufURL, tufRoot, tufCachePath string, verbose bool) (*tuf.Client, error) {
 	// Expand ~ to home directory in cache path
 	if len(tufCachePath) > 0 && tufCachePath[:1] == "~" {
 		home, err := os.UserHomeDir()
@@ -218,11 +216,6 @@ func createTUFClient(tufURL, tufRoot, tufCachePath string, verbose bool, _ bool)
 	tufOptions := tuf.DefaultOptions()
 	tufOptions = tufOptions.WithRepositoryBaseURL(tufURL)
 	tufOptions = tufOptions.WithCachePath(tufCachePath)
-
-	// Setup TUF fetcher
-	fetcher := fetcher.NewDefaultFetcher()
-	fetcher.SetHTTPUserAgent(util.ConstructUserAgent())
-	tufOptions = tufOptions.WithFetcher(fetcher)
 
 	// If custom root file provided
 	if tufRoot != "" {
